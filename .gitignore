@@ -84,3 +84,6 @@ store_200/
 output/
 test/
 .idea/
+
+.env
+datasets

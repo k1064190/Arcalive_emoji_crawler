@@ -237,13 +237,10 @@ def get_soup(url, s, g_soup=True, image=False):
     # delay the request to avoid being blocked
     #
     curtime = time.time()
-    if image:
-        if curtime - global_time < 500:
-            time.sleep(min(max(random.gauss(0.8, 0.2), 0.5), 1.2))
-    else:
+    if not image:
         if curtime - global_time < 1000:
             # sleep time with gaussian distribution of mean 3 and std 1 between 1.5 ~ 4.5
-            time.sleep(min(max(random.gauss(2, 1), 1.5), 3))
+            time.sleep(min(max(random.gauss(1.5, 1), 1), 3))
             # time.sleep(random.randint(1000, 3000) / 1000)
     global_time = curtime
     try:

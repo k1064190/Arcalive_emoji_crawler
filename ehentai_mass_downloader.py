@@ -14,7 +14,10 @@ import re
 def sanitize_directory_name(name):
     # remove characters that windows does not allow
     # e.g) \/:*?"<>|
-    return re.sub(r'[\\/:*?"<>|]', '', name)
+    title = re.sub(r'[\\/:*?"<>|]', '', name)
+    title = title.strip(' ')
+    title = title.strip('.')
+    return title
 
 def read(url, args, s):
     # e.g) self.url = https://exhentai.org/((?f_search=.*)|(tag/.*))

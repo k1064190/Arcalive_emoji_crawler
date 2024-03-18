@@ -29,7 +29,7 @@ def read(url, args, s):
         log.write(f"Filter: {args.filter}\n")
 
         pages = args.pages
-        print('Getting pages...')
+        print('Getting pages')
         page_soup = get_soup(url, s)
         page_number = 1
         while True:
@@ -45,8 +45,8 @@ def read(url, args, s):
                     # some of the title will not be able to be used as a directory name
                     title = sanitize_directory_name(title)
                     directory = os.path.join(args.output, title)
-                    print("Saving " + title + "...")
-                    log.write(f"Saving {title}...\n")
+                    print("Saving " + title)
+                    log.write(f"Saving {title}\n")
                     # if the directory already exists, skip
                     if os.path.exists(directory):
                         print(f"{title} already exists")

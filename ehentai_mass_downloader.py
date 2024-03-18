@@ -10,6 +10,7 @@ import ast
 import random
 from dotenv import load_dotenv
 import re
+import shutil
 
 def sanitize_directory_name(name):
     # remove characters that windows does not allow
@@ -61,7 +62,13 @@ def read(url, args, s):
                     picture_pages = get_picture_pages(article_and_tags[0], s)
                     # save the pictures in a directory in a form of 1, 2, 3, ...
                     save_tags(directory, article_and_tags[1])
-                    save_pictures_from_pages_list(picture_pages, directory, s, error)
+                    is_ok = save_pictures_from_pages_list(picture_pages, directory, s, error)
+                    if not is_ok:
+                        print("bandwidth exceeded")
+                        # remove the directory
+                        shutil.rmtree(directory)
+                        # Exit the program
+                        return
             # next page if exists
             # page = get_soup(page.find("a", {"id" : "dnext"})["href"])
             next = page_soup.find("a", {"id": "dnext"})
@@ -150,6 +157,12 @@ def save_pictures_from_pages_list(urls, dir, s, log):
         soup = get_soup(url, s)
         img_em = soup.find("img", {"id": "img"})
         ref = img_em["src"]
+        if ref == "https://exhentai.org/img/509.gif":
+            # log the bandwidth exceeded page
+            print(f"Bandwidth exceeded: {url} (i: {i})")
+            log.write(f"Bandwidth exceeded: {url} (i: {i})\n")
+            log.flush()
+            return None
         ext = ref.split(".")[-1]
         # save the picture with requests.get(url)
         res = get_soup(ref, s, g_soup=False, image=True)
@@ -169,6 +182,11 @@ def save_pictures_from_pages_list(urls, dir, s, log):
                 soup = get_soup(url, s)
                 img_em = soup.find("img", {"id": "img"})
                 ref = img_em["src"]
+                if ref == "https://exhentai.org/img/509.gif":
+                    # log the bandwidth exceeded page
+                    print(f"Bandwidth exceeded: {url} (i: {i})")
+                    log.write(f"Bandwidth exceeded: {url} (i: {i})\n")
+                    return None
                 res = get_soup(ref, s, g_soup=False, image=True)
                 if res is None:
                     # log the missing page
@@ -186,6 +204,8 @@ def save_pictures_from_pages_list(urls, dir, s, log):
         img_filename = f"{i:04d}.{ext}"
         with open(os.path.join(dir, img_filename), 'wb') as f:
             f.write(res.content)
+
+        return True
 
 def arg_as_list(s):
     v = ast.literal_eval(s)

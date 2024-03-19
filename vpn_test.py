@@ -4,7 +4,7 @@ import time
 import subprocess
 
 def VPN(action, vpn_path, myvpn=None):
-    valid_actions = ["connect", "disconnect", "reconnect", "status"]
+    valid_actions = ["connect", "disconnect_all"]
     if action not in valid_actions:
         return
     else:
@@ -31,8 +31,8 @@ def WaitUntilVPNConnected():
 def WaitUntilVPNDisconnected():
     s = time.time()
     while len(IPAddress()) > 1:
-        time.sleep(3)
-        if (time.time() - s) > 15:
+        time.sleep(5)
+        if (time.time() - s) > 20:
             break
     if len(IPAddress()) == 1:
         time.sleep(5)
@@ -47,7 +47,7 @@ if __name__ == "__main__":
     print("myvpn : ", myvpn)
     print("IP Address : ", IPAddress())
 
-    VPN("connect", vpn_path, myvpn[4])
+    VPN("connect", vpn_path, myvpn[2])
     WaitUntilVPNConnected()
 
     print("IP Address : ", IPAddress())

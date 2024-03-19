@@ -108,20 +108,24 @@ def read(url, args, s):
                             return
                         else:
                             try:
-                                if vpn_connected is None:
-                                    connect_vpn = random.choice(myvpn)
-                                    VPN("connect", args.vpn, connect_vpn)
-                                    WaitUntilVPNConnected()
-                                    vpn_connected = connect_vpn
-                                else:
-                                    VPN("disconnect", args.vpn)
-                                    WaitUntilVPNDisconnected()
-                                    connect_vpn = random.choice(myvpn)
-                                    VPN("connect", args.vpn, connect_vpn)
-                                    WaitUntilVPNConnected()
-                                    vpn_connected = connect_vpn
-                                # retry the page
-                                idx = save_pictures_from_pages_list(title, picture_pages, directory, s, error, idx)
+                                # try 3 times
+                                for _ in range(3):
+                                    if vpn_connected is None:
+                                        connect_vpn = random.choice(myvpn)
+                                        VPN("connect", args.vpn, connect_vpn)
+                                        WaitUntilVPNConnected()
+                                        vpn_connected = connect_vpn
+                                    else:
+                                        VPN("disconnect", args.vpn)
+                                        WaitUntilVPNDisconnected()
+                                        connect_vpn = random.choice(myvpn)
+                                        VPN("connect", args.vpn, connect_vpn)
+                                        WaitUntilVPNConnected()
+                                        vpn_connected = connect_vpn
+                                    # retry the page
+                                    idx = save_pictures_from_pages_list(title, picture_pages, directory, s, error, idx)
+                                    if idx != -1:
+                                        continue
                                 if idx != -1:
                                     raise Exception("VPN connection failed")
                             except Exception as e:

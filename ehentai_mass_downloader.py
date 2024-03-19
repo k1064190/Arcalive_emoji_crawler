@@ -116,7 +116,7 @@ def read(url, args, s):
                                         WaitUntilVPNConnected()
                                         vpn_connected = connect_vpn
                                     else:
-                                        VPN("disconnect", args.vpn)
+                                        VPN("disconnect_all", args.vpn)
                                         WaitUntilVPNDisconnected()
                                         connect_vpn = random.choice(myvpn)
                                         VPN("connect", args.vpn, connect_vpn)
@@ -323,7 +323,7 @@ def get_soup(url, s, g_soup=True, image=False):
     return res
 
 def VPN(action, vpn_path, myvpn=None):
-    valid_actions = ["connect", "disconnect", "reconnect", "status"]
+    valid_actions = ["connect", "disconnect_all"]
     if action not in valid_actions:
         return
     else:
@@ -341,8 +341,8 @@ def IPAddress():
 def WaitUntilVPNConnected():
     s = time.time()
     while len(IPAddress()) == 1:
-        time.sleep(3)
-        if (time.time() - s) > 15:
+        time.sleep(5)
+        if (time.time() - s) > 20:
             break
     if len(IPAddress()) > 1:
         time.sleep(5)
@@ -350,8 +350,8 @@ def WaitUntilVPNConnected():
 def WaitUntilVPNDisconnected():
     s = time.time()
     while len(IPAddress()) > 1:
-        time.sleep(3)
-        if (time.time() - s) > 15:
+        time.sleep(5)
+        if (time.time() - s) > 20:
             break
     if len(IPAddress()) == 1:
         time.sleep(5)

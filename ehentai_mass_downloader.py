@@ -27,6 +27,7 @@ def sanitize_directory_name(name):
 def read(url, args, s):
     # e.g) self.url = https://exhentai.org/((?f_search=.*)|(tag/.*))
     # create a log file
+    global myvpn
     now = datetime.datetime.now()
     if not os.path.exists(args.output):
         os.makedirs(args.output)
@@ -328,9 +329,9 @@ def VPN(action, vpn_path, myvpn=None):
         return
     else:
         if myvpn:
-            command = f"{vpn_path} --command {action} {myvpn}"
+            command = f'"{vpn_path}" --command {action} {myvpn}'
         else:
-            command = f"{vpn_path} --command {action}"
+            command = f'"{vpn_path}" --command {action}'
         subprocess.Popen(command, shell=True)
 
 def IPAddress():

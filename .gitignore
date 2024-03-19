@@ -87,3 +87,5 @@ test/
 
 .env
 datasets
+colored
+proton

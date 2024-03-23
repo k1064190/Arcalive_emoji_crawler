@@ -1,28 +1,16 @@
 import time
 import datetime
 import os
-import multiprocessing
-from multiprocessing import Pool
-import requests
-from bs4 import BeautifulSoup as Soup
 import argparse
-import ast
 import random
-from dotenv import load_dotenv
-import re
 import shutil
-import subprocess
 
 from tqdm import tqdm
 
+from soup import get_soup
+from utils import arg_as_dict, session, sanitize_directory_name
+from vpn import VPN, WaitUntilVPNConnected, WaitUntilVPNDisconnected, checkVPNConnected
 
-def sanitize_directory_name(name):
-    # remove characters that windows does not allow
-    # e.g) \/:*?"<>|
-    title = re.sub(r'[\\/:*?"<>|]', '', name)
-    title = title.strip(' ')
-    title = title.strip('.')
-    return title
 
 def read(url, args, s):
     # e.g) self.url = https://exhentai.org/((?f_search=.*)|(tag/.*))
@@ -36,7 +24,6 @@ def read(url, args, s):
     use_vpn = args.myvpn is not None
     if use_vpn:
         myvpn = os.listdir(args.myvpn)
-        myvpn = [os.path.join(args.vpn, vpn) for vpn in myvpn if vpn.endswith(".ovpn")]
     vpn_connected = None
     with open(log_dir, "w", encoding='utf-8') as log, open(error_dir, "w", encoding='utf-8') as error:
         log.write(f"URL: {url}\n")
@@ -105,30 +92,45 @@ def read(url, args, s):
                         log.write("bandwidth exceeded\n")
                         # if use_vpn is False, just remove the directory and return
                         if not use_vpn:
-                            shutil.rmtree(directory)
-                            return
+                            # wait for 1 minute and retry
+                            time.sleep(60)
+                            idx = save_pictures_from_pages_list(title, picture_pages, directory, s, error, idx)
+                            if idx != -1:
+                                time.sleep(7200)
+                                idx = save_pictures_from_pages_list(title, picture_pages, directory, s, error, idx)
+                                if idx != -1:
+                                    log.write("Why bandwidth exceeded again?\n")
+                                    shutil.rmtree(directory)
+                                    return
                         else:
                             try:
-                                # try 3 times
+                                # try 2 times
                                 for _ in range(3):
-                                    if vpn_connected is None:
+                                    if not checkVPNConnected():
                                         connect_vpn = random.choice(myvpn)
                                         VPN("connect", args.vpn, connect_vpn)
                                         WaitUntilVPNConnected()
-                                        vpn_connected = connect_vpn
                                     else:
                                         VPN("disconnect_all", args.vpn)
                                         WaitUntilVPNDisconnected()
                                         connect_vpn = random.choice(myvpn)
                                         VPN("connect", args.vpn, connect_vpn)
                                         WaitUntilVPNConnected()
-                                        vpn_connected = connect_vpn
                                     # retry the page
                                     idx = save_pictures_from_pages_list(title, picture_pages, directory, s, error, idx)
-                                    if idx != -1:
-                                        continue
+                                    if idx == -1:
+                                        break
                                 if idx != -1:
-                                    raise Exception("VPN connection failed")
+                                    # wait for 2 hours
+                                    if checkVPNConnected():
+                                        VPN("disconnect_all", args.vpn)
+                                        WaitUntilVPNDisconnected()
+                                    time.sleep(7200)
+                                    idx = save_pictures_from_pages_list(title, picture_pages, directory, s, error, idx)
+                                    if idx != -1:
+                                        log.write("Why bandwidth exceeded again?\n")
+                                        shutil.rmtree(directory)
+                                        return
                             except Exception as e:
                                 log.write("VPN connection failed with error: " + str(e) + "\n")
                                 shutil.rmtree(directory)
@@ -215,12 +217,24 @@ def get_picture_pages(soup, s):
     return pages_list
 
 def save_pictures_from_pages_list(title, urls, dir, s, log, start):
+    global img_em
     len_pics = start + 1
     for i in tqdm(range(start, -1, -1), position=1, unit="pics", leave=False, total=len_pics):
         url = urls[i]
         # get picture url from the page
-        soup = get_soup(url, s)
-        img_em = soup.find("img", {"id": "img"})
+        success = False
+        for _ in range(3):
+            try:
+                soup = get_soup(url, s)
+                img_em = soup.find("img", {"id": "img"})
+                success = True
+                break
+            except AttributeError:
+                log.write(f"Missing page: {url} (i: {i})\n")
+                log.flush()
+                continue
+        if not success:
+            raise Exception("Missing page: " + url)
         ref = img_em["src"]
         if ref == "https://exhentai.org/img/509.gif":
             # log the bandwidth exceeded page
@@ -268,94 +282,6 @@ def save_pictures_from_pages_list(title, urls, dir, s, log, start):
 
     return -1
 
-def arg_as_list(s):
-    v = ast.literal_eval(s)
-    if type(v) is not list:
-        return None
-    return v
-
-def arg_as_dict(s):
-    v = ast.literal_eval(s)
-    if type(v) is not dict:
-        return None
-    # e.g) "{'artist': ['artist1', 'artist2'], 'group': ['group1', 'group2'], ...}"
-    # if there is _ in keys and values, replace it with space
-    new_dict = {}
-    keys, values = list(v.keys()), list(v.values())
-    for key, value in zip(keys, values):
-        new_values = []
-        for old_value in value:
-            new_values.append(old_value.replace("_", " "))
-        new_key = key.replace("_", " ")
-        new_dict[new_key] = new_values
-    return new_dict
-
-
-def session():
-    load_dotenv()
-
-    id = os.getenv("ID")
-    pwd = os.getenv("PWD")
-    session = os.getenv("SESSION")
-
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 Edg/122.0.0.0"}
-    cookies = {'ipb_member_id': id, 'ipb_pass_hash': pwd, 'ipb_session_id': session}
-
-    return {"headers": headers, "cookies": cookies}
-
-global_time = time.time()
-def get_soup(url, s, g_soup=True, image=False):
-    global global_time
-    # delay the request to avoid being blocked
-    #
-    curtime = time.time()
-    if not image:
-        if curtime - global_time < 1000:
-            # sleep time with gaussian distribution of mean 3 and std 1 between 1.5 ~ 4.5
-            time.sleep(min(max(random.gauss(1.5, 1), 1), 3))
-            # time.sleep(random.randint(1000, 3000) / 1000)
-    global_time = curtime
-    try:
-        res = requests.get(url, **s, timeout=30)
-    except requests.exceptions.RequestException:
-        return None
-    if g_soup:
-            res = Soup(res.text, "html.parser")
-    return res
-
-def VPN(action, vpn_path, myvpn=None):
-    valid_actions = ["connect", "disconnect_all"]
-    if action not in valid_actions:
-        return
-    else:
-        if myvpn:
-            command = f'"{vpn_path}" --command {action} {myvpn}'
-        else:
-            command = f'"{vpn_path}" --command {action}'
-        subprocess.Popen(command, shell=True)
-
-def IPAddress():
-    ipconfig = os.popen('ipconfig').read()
-    ipv4 = re.findall(r'IPv4.*?(\d+\.\d+\.\d+\.\d+)', ipconfig)
-    return ipv4
-
-def WaitUntilVPNConnected():
-    s = time.time()
-    while len(IPAddress()) == 1:
-        time.sleep(5)
-        if (time.time() - s) > 20:
-            break
-    if len(IPAddress()) > 1:
-        time.sleep(5)
-
-def WaitUntilVPNDisconnected():
-    s = time.time()
-    while len(IPAddress()) > 1:
-        time.sleep(5)
-        if (time.time() - s) > 20:
-            break
-    if len(IPAddress()) == 1:
-        time.sleep(5)
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Download from exhentai, e-hentai')

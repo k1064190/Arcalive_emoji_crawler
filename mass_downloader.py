@@ -93,7 +93,7 @@ def read(url, args, s):
                         # if use_vpn is False, just remove the directory and return
                         if not use_vpn:
                             # wait for 1 minute and retry
-                            time.sleep(60)
+                            time.sleep(120)
                             idx = save_pictures_from_pages_list(title, picture_pages, directory, s, error, idx)
                             if idx != -1:
                                 time.sleep(7200)
@@ -113,9 +113,6 @@ def read(url, args, s):
                                     else:
                                         VPN("disconnect_all", args.vpn)
                                         WaitUntilVPNDisconnected()
-                                        connect_vpn = random.choice(myvpn)
-                                        VPN("connect", args.vpn, connect_vpn)
-                                        WaitUntilVPNConnected()
                                     # retry the page
                                     idx = save_pictures_from_pages_list(title, picture_pages, directory, s, error, idx)
                                     if idx == -1:

@@ -26,7 +26,7 @@ def WaitUntilVPNConnected():
     s = time.time()
     while len(IPAddress()) == 1:
         time.sleep(5)
-        if (time.time() - s) > 20:
+        if (time.time() - s) > 120:
             break
     if len(IPAddress()) > 1:
         time.sleep(5)
@@ -36,7 +36,7 @@ def WaitUntilVPNDisconnected():
     s = time.time()
     while len(IPAddress()) > 1:
         time.sleep(5)
-        if (time.time() - s) > 20:
+        if (time.time() - s) > 120:
             break
     if len(IPAddress()) == 1:
         time.sleep(5)
